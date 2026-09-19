@@ -43,6 +43,7 @@ def main(config):
 
     return render.Root(
         delay = 3500,
+        show_full_animation = True,
         child = render.Animation(children = frames),
     )
 
