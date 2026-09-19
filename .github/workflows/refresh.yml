@@ -31,6 +31,6 @@ jobs:
         run: |
           pixlet push \
             --api-token "${{ secrets.TIDBYT_API_TOKEN }}" \
-            --installation-id ncaaf_scores \
+            --installation-id ncaafscores \
             "${{ secrets.TIDBYT_DEVICE_ID }}" \
             ncaaf_scores.webp
