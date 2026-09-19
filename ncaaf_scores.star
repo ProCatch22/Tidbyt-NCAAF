@@ -12,7 +12,7 @@ load("encoding/base64.star", "base64")
 load("schema.star", "schema")
 load("cache.star", "cache")
 
-ESPN_URL = "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard"
+ESPN_URL = "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?limit=300"
 
 DEFAULT_COLOR_LIVE = "#FFD700"
 DEFAULT_COLOR_FINAL = "#AAAAAA"
