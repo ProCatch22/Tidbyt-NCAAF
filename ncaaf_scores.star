@@ -27,6 +27,11 @@ BATCH_SIZE = 4
 # cron interval). Used to pick which batch of games to show right now.
 REFRESH_MINUTES = 5
 
+# Teams whose games should always appear in the current batch, matched
+# exactly against ESPN's school name (not a substring match, so "Michigan"
+# won't also catch "Michigan State").
+PRIORITY_TEAMS = ["michigan", "colorado state"]
+
 def main(config):
     favorite = config.str("favorite_team", "")
     games = get_games()
@@ -58,16 +63,24 @@ def main(config):
     )
 
 def get_current_batch(games):
-    num_batches = (len(games) + BATCH_SIZE - 1) // BATCH_SIZE
+    priority_games = [g for g in games if g["is_priority"]]
+    other_games = [g for g in games if not g["is_priority"]]
+
+    remaining_slots = BATCH_SIZE - len(priority_games)
+    if remaining_slots <= 0:
+        # Priority games alone already fill (or exceed) a batch.
+        return priority_games
+
+    num_batches = (len(other_games) + remaining_slots - 1) // remaining_slots
     if num_batches <= 1:
-        return games
+        return priority_games + other_games
 
     now = time.now()
     minutes_since_midnight = now.hour * 60 + now.minute
     batch_index = (minutes_since_midnight // REFRESH_MINUTES) % num_batches
 
-    start = batch_index * BATCH_SIZE
-    return games[start:start + BATCH_SIZE]
+    start = batch_index * remaining_slots
+    return priority_games + other_games[start:start + remaining_slots]
 
 def get_games():
     cached = cache.get("ncaaf_scores")
@@ -108,6 +121,10 @@ def get_games():
         home_team = home.get("team", {})
         away_team = away.get("team", {})
 
+        home_location = home_team.get("location", "").lower()
+        away_location = away_team.get("location", "").lower()
+        is_priority = home_location in PRIORITY_TEAMS or away_location in PRIORITY_TEAMS
+
         games.append({
             "home": home_team.get("abbreviation", "HOM"),
             "away": away_team.get("abbreviation", "AWY"),
@@ -121,6 +138,7 @@ def get_games():
             "away_rank": get_rank(away),
             "state": state,
             "detail": short_detail,
+            "is_priority": is_priority,
         })
 
     cache.set("ncaaf_scores", json.encode(games), ttl_seconds = 60)
