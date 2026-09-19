@@ -11,12 +11,21 @@ load("encoding/json.star", "json")
 load("encoding/base64.star", "base64")
 load("schema.star", "schema")
 load("cache.star", "cache")
+load("time.star", "time")
 
 ESPN_URL = "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?limit=300"
 
 DEFAULT_COLOR_LIVE = "#FFD700"
 DEFAULT_COLOR_FINAL = "#AAAAAA"
 DEFAULT_COLOR_UPCOMING = "#55AAFF"
+
+# How many games to show per push. At delay=3500ms, 4 games ~= 14s,
+# which fits inside Tidbyt's default ~15s per-app rotation window.
+BATCH_SIZE = 4
+
+# How often this app actually gets refreshed (matches the GitHub Actions
+# cron interval). Used to pick which batch of games to show right now.
+REFRESH_MINUTES = 5
 
 def main(config):
     favorite = config.str("favorite_team", "")
@@ -39,6 +48,7 @@ def main(config):
             ),
         )
 
+    games = get_current_batch(games)
     frames = [render_game(g) for g in games]
 
     return render.Root(
@@ -46,6 +56,18 @@ def main(config):
         show_full_animation = True,
         child = render.Animation(children = frames),
     )
+
+def get_current_batch(games):
+    num_batches = (len(games) + BATCH_SIZE - 1) // BATCH_SIZE
+    if num_batches <= 1:
+        return games
+
+    now = time.now()
+    minutes_since_midnight = now.hour * 60 + now.minute
+    batch_index = (minutes_since_midnight // REFRESH_MINUTES) % num_batches
+
+    start = batch_index * BATCH_SIZE
+    return games[start:start + BATCH_SIZE]
 
 def get_games():
     cached = cache.get("ncaaf_scores")
